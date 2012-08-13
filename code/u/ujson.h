@@ -31,34 +31,52 @@ namespace ujson {
             Type_MAX
         };
         
-        Json( Type tv = Type_Invalid ) : t( tv ) {}
+        Json( Type tv = Type_Null ) : t( tv ) {}
         Json( const std::string & sv ) : t( Type_String ), s( sv ) {} 
         Json( const char * sv ) : t( Type_String ), s( sv ) {} 
         Json( double nv ) : t( Type_Number ), n( nv ) {}
         Json( bool bv ) : t( Type_Bool ), b( bv ) {} 
         
         ~Json() {}
+
+        Json & operator= ( const Json & rhs );
+        
         Type GetType() const { return t; }
         
-        // map methods
-        Json * & LookupAdd( const std::string & key ) {
-            return m[key];
+        size_t Size() const {
+            switch( t ) {
+                case Type_Object:  return m.size();
+                case Type_Array:   return v.size();
+                case Type_String:
+                case Type_Number:
+                case Type_Bool:
+                case Type_Null:    return 1;
+                default:
+                    break;
+            }
+            return 0;
         }
-        Json * Lookup( const std::string & key ) {
-            return m.find( key )->second;
-        }
-        const Json * Lookup( const std::string & key ) const {
-            return m.find( key )->second;
-        }
-        //
         
-        // vector methods
-        int Size() const {
-            return (int)v.size();
+        void GetMemberNames( std::vector<std::string> & name ) {
+            name.resize( m.size() );
+            int i = 0;
+            for( M::iterator it = m.begin(); it != m.end(); ++it ) {
+                name[ i++ ] = it->first;
+            }
         }
-        //
 
-        const Type t;
+        // square brackets construct members if necessary
+        Json & operator[] ( const std::string & name );
+        Json & operator[] ( size_t index );
+
+        // parens never construct members, they are for inspection only
+        Json & operator() ( const std::string & name );
+        Json & operator() ( size_t index );
+        
+        const Json & operator() ( const std::string & name ) const;
+        const Json & operator() ( size_t index ) const;
+
+        Type t;
         M m;
         V v;
         S s;
@@ -373,11 +391,89 @@ namespace {
         }
         return j;
     }
-        
+
+    Json invalid_node( Json::Type_Invalid );
 }
 
 namespace ujson {    
 
+    Json & Json::operator= ( const Json & rhs ) {
+        if( this != &invalid_node ) {
+            t = rhs.t;
+            m = rhs.m;
+            v = rhs.v;
+            s = rhs.s;
+            n = rhs.n;
+            b = rhs.b;
+        }
+        return *this;
+    }
+    
+    // square brackets construct members if necessary
+    Json & Json::operator[] ( const std::string & name ) {
+        if( t == Type_Object ) {
+            Json * & j = m[name];
+            if( j == NULL ) {
+                j = new Json();
+            }
+            return *j;
+        }
+        return invalid_node;
+    }
+    
+    Json & Json::operator[] ( size_t index ) {
+        if( t == Type_Array ) {
+            if( index >= v.size() ) {
+                size_t old_size = v.size();
+                v.resize( index + 1 );
+                for( size_t i = old_size; i <= index; i++ ) {
+                    v[ i ] = new Json();
+                }
+            }
+            return *v[ index ];
+        }
+        return invalid_node;
+    }
+    
+    // parens never construct members, they are for inspection only
+    Json & Json::operator() ( const std::string & name ) {
+        if( t == Type_Object ) {
+            M::iterator it = m.find( name );
+            if( it != m.end() ) {
+                return *it->second;
+            }
+        }
+        return invalid_node;        
+    }
+
+    Json & Json::operator() ( size_t index ) {        
+        if( t == Type_Array ) {
+            if( index < v.size() ) {
+                return *v[ index ];
+            }
+        }
+        return invalid_node;
+    }
+    
+    const Json & Json::operator() ( const std::string & name ) const {
+        if( t == Type_Object ) {
+            M::const_iterator it = m.find( name );
+            if( it != m.end() ) {
+                return *it->second;
+            }
+        }
+        return invalid_node;        
+    }
+    
+    const Json & Json::operator() ( size_t index ) const {
+        if( t == Type_Array ) {
+            if( index < v.size() ) {
+                return *v[ index ];
+            }
+        }
+        return invalid_node;        
+    }
+    
     void Encode( const Json *json, std::string s, std::stringstream & ss ) {
         if ( json == NULL ) {
             if( s.size() != 1 ) { ss << s; } 
@@ -456,6 +552,10 @@ namespace ujson {
                 ss << s << ( json->b ? "true" : "false" );
             }
                 break;
+            case Json::Type_Null:
+            {
+                ss << s << "null";
+            }
             default:
                 break;
         }
