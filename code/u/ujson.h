@@ -314,12 +314,6 @@ namespace {
         }
         return j;
     }
-
-    enum string_parse_state {
-        SPS_normal,
-        SPS_escape,
-        SPS_unicode,
-    };
     
     Json * parse_json_string( parse_state & p ) {
         Json * j = new Json("");
