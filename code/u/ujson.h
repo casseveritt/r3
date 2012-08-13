@@ -83,6 +83,51 @@ namespace ujson {
 using namespace ujson;
 
 namespace {
+
+    std::string escape_string( const std::string & s ) {
+        std::string e;
+        for( int i = 0; i < (int)s.size(); i++ ) {
+            char c = s[ i ];
+            switch( c ) {
+                case '\b':  e += '\\'; e += 'b'; break;
+                case '\f':  e += '\\'; e += 'f'; break;
+                case '\n':  e += '\\'; e += 'n'; break;
+                case '\r':  e += '\\'; e += 'r'; break;
+                case '\t':  e += '\\'; e += 't'; break;
+                case '/':
+                case '"':
+                case '\\':
+                    e += '\\';
+                    e += c;
+                    break;
+                default:
+                    e += c;
+            }
+        }
+        return e;
+    }
+    
+    std::string unescape_string( const std::string & s ) {
+        std::string u;
+        bool escaped = false;
+        for( int i = 0; i < (int)s.size(); i++ ) {
+            char c = s[ i ];
+            if( escaped ) {
+                if( c == 'n' || c == 'u' ) { // complete this list
+                    u += '\\';
+                }
+                u += c;
+                escaped = false;
+                continue;
+            }
+            if( c == '\\' ) {
+                escaped = true;
+                continue;
+            }
+            u += c;
+        }
+        return u;
+    }    
     
     struct parse_state {
         parse_state( const char * bv, int nb ) : bytes( bv ), nbytes( nb ), line( 0 ), success( true ) {
@@ -133,6 +178,28 @@ namespace {
     Json * parse_json_node( parse_state & p );
     
     
+    bool is_control( char c ) {
+        return c >= 0 && c < 32;
+    }
+    
+    int utf8_bytes( char c ) {
+        unsigned char u = *(unsigned char *)&c;
+        if( ( u & 0x80 ) == 0 ) {
+            return 1;
+        } else if ( ( u & 0xe0 ) == 0xc0 ) {
+            return 2;
+        } else if ( ( u & 0xf0 ) == 0xe0 ) {
+            return 3;
+        } else if ( ( u & 0xf8 ) == 0xf0 ) {
+            return 4;
+        } else if ( ( u & 0xfc ) == 0xf8 ) {
+            return 5;
+        } else if ( ( u & 0xfe ) == 0xfc ) {
+            return 6;
+        }
+        return 0;
+    }
+    
     void parse_string( parse_state & p, std::string & str ) {
         if( p.bytes[0] != '"' ) {
             p.fail();
@@ -142,10 +209,62 @@ namespace {
         while( p.at_end() == false ) {
             char c = p.bytes[0];
             p.advance( 1 );
+            if( is_control( c ) ) {
+                p.fail();
+                return;
+            }
+            if( c == '\\' ) {
+                c = p.bytes[0];
+                p.advance( 1 );
+                switch( c ) {
+                    case 'b': str += '\b'; continue;
+                    case 'f': str += '\f'; continue;
+                    case 'n': str += '\n'; continue;
+                    case 'r': str += '\r'; continue;
+                    case 't': str += '\t'; continue;
+                    case '"':
+                    case '\\':
+                    case '/':
+                        str += c;
+                        continue;
+                        break;
+                    case 'u':
+                        if( p.nbytes < 4 ) {
+                            p.fail();
+                            return;
+                        }
+                        str += '\\';
+                        str += 'u';
+                        str += p.bytes[0];
+                        str += p.bytes[1];
+                        str += p.bytes[2];
+                        str += p.bytes[3];
+                        p.advance( 4 );
+                        break;
+                    default:
+                        p.fail();
+                        return;
+                }
+            }
             if( c == '"' ) {
                 break;
             }
+            int nb = utf8_bytes( c );
+            if( nb == 0 || nb > p.nbytes ) {
+                p.fail();
+                return;
+            }
             str += c;
+            for( int i = 1; i < nb; i++ ) {
+                char c = p.bytes[0];
+                p.advance( 1 );
+                unsigned char u = *(unsigned char *)&c;
+                if( ( u & 0xc0 ) != 0x80 ) {
+                    p.fail();
+                    return;
+                }
+                str += c;
+            }
         }
     }
 
@@ -282,52 +401,7 @@ namespace {
         }
         return j;
     }
-    
-    bool escape_char( char c ) {
-        switch( c ) {
-            case '"':
-            case '\\':
-                return true;
-            default:
-                break;
-        }
-        return false;
-    }
-    
-    std::string escape_string( const std::string & s ) {
-        std::string e;
-        for( int i = 0; i < (int)s.size(); i++ ) {
-            char c = s[ i ];
-            if( escape_char( c ) ) {
-                e += '\\';
-            }
-            e += c;
-        }
-        return e;
-    }
-    
-    std::string unescape_string( const std::string & s ) {
-        std::string u;
-        bool escaped = false;
-        for( int i = 0; i < (int)s.size(); i++ ) {
-            char c = s[ i ];
-            if( escaped ) {
-                if( c == 'n' || c == 'u' ) { // complete this list
-                    u += '\\';
-                }
-                u += c;
-                escaped = false;
-                continue;
-            }
-            if( c == '\\' ) {
-                escaped = true;
-                continue;
-            }
-            u += c;
-        }
-        return u;
-    }
-    
+        
 }
 
 namespace ujson {    
