@@ -107,28 +107,6 @@ namespace {
         return e;
     }
     
-    std::string unescape_string( const std::string & s ) {
-        std::string u;
-        bool escaped = false;
-        for( int i = 0; i < (int)s.size(); i++ ) {
-            char c = s[ i ];
-            if( escaped ) {
-                if( c == 'n' || c == 'u' ) { // complete this list
-                    u += '\\';
-                }
-                u += c;
-                escaped = false;
-                continue;
-            }
-            if( c == '\\' ) {
-                escaped = true;
-                continue;
-            }
-            u += c;
-        }
-        return u;
-    }    
-    
     struct parse_state {
         parse_state( const char * bv, int nb ) : bytes( bv ), nbytes( nb ), line( 0 ), success( true ) {
             if( nbytes == 0 ) {
