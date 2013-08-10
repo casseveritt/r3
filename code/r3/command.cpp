@@ -141,7 +141,7 @@ namespace {
 	void ListCommands( const vector< Token > & tokens ) {
 		map< Atom, Command * > &m = commands->lookup;
 		for( map< Atom, Command * >::iterator it = m.begin(); it != m.end(); ++it ) {
-			Output( "%s - %s\n", it->first.Str().c_str(), it->second->HelpText().c_str() );
+			Output( "%s - %s", it->first.Str().c_str(), it->second->HelpText().c_str() );
 		}
 	}
 	CommandFunc ListCommandsCmd( "listcommands", "lists registered commands", ListCommands );

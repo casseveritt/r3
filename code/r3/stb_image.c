@@ -2370,10 +2370,11 @@ static int create_png_image_raw(png *a, uint8 *raw, uint32 raw_len, int out_n, u
    a->out = (uint8 *) malloc(x * y * out_n);
    if (!a->out) return e("outofmem", "Out of memory");
    if (!stbi_png_partial) {
-      if (s->img_x == x && s->img_y == y)
+       if (s->img_x == x && s->img_y == y) {
          if (raw_len != (img_n * x + 1) * y) return e("not enough pixels","Corrupt PNG");
-      else // interlaced:
+       } else {// interlaced:
          if (raw_len < (img_n * x + 1) * y) return e("not enough pixels","Corrupt PNG");
+       }
    }
    for (j=0; j < y; ++j) {
       uint8 *cur = a->out + stride*j;

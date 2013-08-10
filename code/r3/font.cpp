@@ -574,9 +574,12 @@ namespace {
 		vector<int> uc;
 		UnescapeUnicode( text, uc );
 		bool reverse = false;
-		for ( int i = 0; i < (int)uc.size(); i++ ) {
+		for ( int i = 0; i < (int)uc.size() ; i++ ) {
 			int c = uc[i];
 			reverse = reverse || GetGlyph( c ).reverse;
+      if( reverse ) {
+        break;
+      }
 		} 
 		if ( reverse ) {
 			std::reverse( uc.begin(), uc.end() );

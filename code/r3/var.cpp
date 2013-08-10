@@ -47,6 +47,7 @@
 #include "r3/common.h"
 #include "r3/output.h"
 #include "r3/filesystem.h"
+#include "r3/ujson.h"
 
 #include <iostream>
 #include <sstream>
@@ -118,13 +119,36 @@ namespace {
 			return;
 		}
 		reading = true;
-		string fn = ( tokens.size() == 1 ? string("default") : tokens[1].valString ) + ".vars";
-		File *f = FileOpenForRead( fn );
-		while ( f && ! f->AtEnd() ) {
-			string line = f->ReadLine();
-			ExecuteCommand( line.c_str() );
-		}
-		delete f;
+		string fn = ( tokens.size() == 1 ? string("default") : tokens[1].valString ) + ".vars.json";
+
+    vector<uchar> data;
+    FileReadToMemory( fn, data );
+    bool success = false;
+    int line = -1;
+    ujson::Json * j = ujson::Decode( (const char *) & data[0], (int)data.size(), &success, &line );
+    if( ! success ) {
+      Output( "failed to load %s at line %d", fn.c_str(), line );
+      reading = false;
+      return;
+    }
+    if( j && j->GetType() == ujson::Type_Array ) {
+      for( int i = 0; i < j->Size(); i++ ) {
+        ujson::Json & e = j->operator()(i);
+        if( e.GetType() != ujson::Type_Object ) {
+          continue;
+        }
+        string & name = e["name"].s;
+        Atom aName( name.c_str() );
+        if ( vars->lookup.count( aName ) == 0 ) {
+          // undefined variable
+          continue;
+        }
+        Var * v = vars->lookup[ aName ];
+        v->Set( e["value"].s.c_str() );
+      }
+    } else {
+      Output( "wrong vars json format for %s, expected an array", fn.c_str() );
+    }
 		reading = false;
 	}	
 	CommandFunc ReadVarsCmd( "readvars", "read and set vars from file", ReadVars );
@@ -137,21 +161,32 @@ namespace {
 		}
 		string fn;
 		if ( tokens.size() == 2 ) {
-			fn = tokens[1].valString + ".vars";			
+      fn = tokens[1].valString;
+      if( fn.rfind( ".vars.json") == string::npos ) {
+        fn += ".vars.json";
+      }
 		} else {
-			fn = "default.vars";
+			fn = "default.vars.json";
 		}
 		File *f = FileOpenForWrite( fn );
+    stringstream ss ( stringstream::out );
+    ss << "[ ";
+    string sep = "";
 		for( map< Atom, Var * >::iterator it = vars->lookup.begin(); it != vars->lookup.end(); ++it ) {
-			string s = it->first.Str();
 			Var *v = it->second;
-			if ( v->Flags() & Var_Archive ) {
-				stringstream ss ( stringstream::out );
-				ss << "set " << s << " " << " " << v->Get();
-				f->WriteLine( ss.str() );				
-			}
+			if ( (v->Flags() & Var_Archive) == 0 ) {
+        continue;
+      }
+      ss << sep << endl;
+      ss << "  {" << endl;
+      ss << "    \"name\": \"" << it->first.Str() << "\"," << endl;
+      ss << "    \"value\": \"" << v->Get() << "\"" << endl;
+      ss << "  }";
+      sep = ",";
 		}
-		delete f;		
+    ss << endl << "]" << endl;
+    f->WriteLine( ss.str() );
+		delete f;
 	}
 	CommandFunc WriteVarsCmd( "writevars", "write archive vars", WriteVars );
 

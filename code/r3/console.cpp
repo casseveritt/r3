@@ -373,7 +373,7 @@ namespace r3 {
 		string cl = "> " + commandLine;
 		int cp = cursorPos + 2;
 
-		Bounds2f b = font->GetStringDimensions( cl, s );
+		//Bounds2f b = font->GetStringDimensions( cl, s );
 		Bounds2f b2 = font->GetStringDimensions( cl.substr(0, cp ), s );
 		
 		glColor4ub( 255, 255, 255, 192 );

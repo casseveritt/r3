@@ -138,8 +138,8 @@ namespace {
         GlContext gc;
     };
 #elif TARGET_OS_MAC
-# include <OpenGL/OpenGL.h>
-# include <OpenGL/CGLCurrent.h>
+//# include <OpenGL/OpenGL.h>
+//# include <OpenGL/CGLCurrent.h>
     
     struct PlatformGfxContext : public r3::GfxContext {
         PlatformGfxContext( r3::GfxContext * gctx ) {

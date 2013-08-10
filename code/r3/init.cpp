@@ -117,6 +117,7 @@ namespace r3 {
     ShutdownDraw();
     ShutdownBuffer();
 #endif
+    ShutdownFilesystem();
   }
 
 }
