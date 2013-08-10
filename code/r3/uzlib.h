@@ -1,5 +1,5 @@
 /*
- *  uzlib - tiny zlib
+ *  uzlib - tiny zlib, extracted from Sean Barrett's stb_image.h code
  *
  */
 
@@ -58,7 +58,7 @@ namespace r3 {
 
 }
 
-#else 
+#else // R3_UZLIB_IMPLEMENTATION
 
 #include <assert.h>
 #include <string.h>

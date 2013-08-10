@@ -1,9 +1,19 @@
-#ifndef __UBASE64_H__
-#define __UBASE64_H__
+#ifndef __R3_UBASE64_H__
+#define __R3_UBASE64_H__
 
 #include <vector>
 
-#if UBASE64_IMPLEMENTATION
+#if ! R3_UBASE64_IMPLEMENTATION
+
+namespace r3 {
+  namespace ubase64 {
+    void Encode( std::vector<byte> &output, const std::vector<byte> &input );
+    void Decode( std::vector<byte> &output, const std::vector<byte> &input );
+  }
+}
+
+#else // R3_UBASE64_IMPLEMENTATION
+
 namespace {
     typedef unsigned char byte;    
     
@@ -98,41 +108,39 @@ namespace {
         memcpy( ce, enc, 4 );
         return count;
     }
-    
-    
-    
 
 }
 
-namespace ubase64 {
-    
+namespace r3 {
+  namespace ubase64 {
+
     void Encode( std::vector<byte> &output, const std::vector<byte> &input ) {
-        int s = (int)input.size();
-        int c = 0;
-        char enc[4];
-        while( s > c ) {
-            int chars = std::min( s - c, 3 );
-            EncodeChunk( enc, & input[ c ], chars );
-            output.push_back( enc[0] );
-            output.push_back( enc[1] );
-            output.push_back( enc[2] );
-            output.push_back( enc[3] );            
-            c += 3;
-        }
+      int s = (int)input.size();
+      int c = 0;
+      char enc[4];
+      while( s > c ) {
+        int chars = std::min( s - c, 3 );
+        EncodeChunk( enc, & input[ c ], chars );
+        output.push_back( enc[0] );
+        output.push_back( enc[1] );
+        output.push_back( enc[2] );
+        output.push_back( enc[3] );            
+        c += 3;
+      }
     }
-    
-    void Decode( std::vector<byte> &output, const std::vector<byte> &input ) {
-        for( int c = 0; c < (int) input.size(); c += 4 ) {
-            byte dec[3];
-            int count = DecodeChunk( dec, & input[ c ] );
-            for( int i = 0; i < count; i++ ) {
-                output.push_back( dec[i] );
-            }
-        }
-    }
-    
-}
-#endif
 
-#endif // __R3_BASE64_H__
+    void Decode( std::vector<byte> &output, const std::vector<byte> &input ) {
+      for( int c = 0; c < (int) input.size(); c += 4 ) {
+        byte dec[3];
+        int count = DecodeChunk( dec, & input[ c ] );
+        for( int i = 0; i < count; i++ ) {
+          output.push_back( dec[i] );
+        }
+      }
+    }
+  }
+}
+#endif // R3_UBASE64_IMPLEMENTATION
+
+#endif // __R3_UBASE64_H__
 
