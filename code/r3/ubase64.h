@@ -1,6 +1,7 @@
 #ifndef __R3_UBASE64_H__
 #define __R3_UBASE64_H__
 
+#include <cstring>
 #include <vector>
 
 #if ! R3_UBASE64_IMPLEMENTATION
