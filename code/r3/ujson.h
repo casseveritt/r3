@@ -337,6 +337,7 @@ namespace r3 {
 #if UJSON_IMPLEMENTATION
 
 #include <stdlib.h>
+#include <string.h>
 #include <sstream>
 
 using namespace r3::ujson;

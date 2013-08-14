@@ -332,6 +332,11 @@ namespace r3 {
 	}
 	
 	bool UrlReadToMemory( const string & urlString, vector< uchar > & data ) {
+    map<string, string> header;
+    return UrlReadToMemory( urlString, data, header );
+  }
+  
+  bool UrlReadToMemory( const string & urlString, vector< uchar > & data, map<string, string> & header ) {
 		data.clear();
 		UniformResourceLocator u( urlString );
 		if ( u.protocol == UrlProtocol_INVALID ) {
@@ -351,12 +356,17 @@ namespace r3 {
 		Output( "Sending http request (%d chars): %s", sz, buf );
 		sock.Write( buf, sz );
 		InputStream is( sock );
-		HttpResponse resp ( is );
 
+    // add If-None-Match with etag in the header....
+		HttpResponse resp ( is );
+    header = resp.header;
+    
+    /*
 		Output( "%s %d %s", resp.protocol.c_str(), resp.code, resp.reason.c_str() );
 		for( map<string, string>::iterator it = resp.header.begin(); it != resp.header.end(); ++it ) {
 			Output( "    %s: %s", it->first.c_str(), it->second.c_str() );
 		}
+    */
 		
 		int bytes = resp.GetInt("Content-Length");
 		if ( bytes > 0 ) { // not chunked - single payload

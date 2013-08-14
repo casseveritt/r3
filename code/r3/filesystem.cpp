@@ -45,7 +45,9 @@
 #include "r3/var.h"
 #include "r3/output.h"
 #include "r3/parse.h"
+#include "r3/http.h"
 #include "r3/md5.h"
+#include "r3/ujson.h"
 
 #if __APPLE__
 # include <TargetConditionals.h>
@@ -83,6 +85,7 @@ double apkTimestamp;
 namespace r3 {
 	VarString f_basePath( "f_basePath", "path to the base directory", Var_ReadOnly, "");
 	VarString f_cachePath( "f_cachePath", "path to writable cache directory", Var_ReadOnly, "" );
+	VarString f_cacheSource( "f_cacheSource", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
 }
 
 
@@ -115,7 +118,12 @@ namespace {
     return sum;
   }
   
-  map<string, string> manifest;
+  struct ManifestInfo {
+    string md5;
+    string etag;
+    string lastModified;
+  };
+  map<string, ManifestInfo> manifest;
 
   void WriteCacheManifest() {
     if( f_cachePath.GetVal().size() == 0 ) {
@@ -126,16 +134,59 @@ namespace {
       return;
     }
     stringstream ss ( stringstream::out );
-    ss << "[ ";
+    ss << "{ ";
     string sep = "";
-		for( map<string,string>::iterator it = manifest.begin(); it != manifest.end(); ++it ) {
+		for( map<string,ManifestInfo>::iterator it = manifest.begin(); it != manifest.end(); ++it ) {
+      ManifestInfo &mi = it->second;
       ss << sep << endl;
-      ss << "  \"" << it->first.c_str() << "\": \"" << it->second.c_str() << "\"";
+      ss << "  \"" << it->first.c_str() << "\": {" << endl;
+      ss << "    \"md5\": \"" << mi.md5.c_str() << "\"," << endl;
+      if( mi.etag.size() < 2 ) {
+        mi.etag = "\"\"";
+      }
+      ss << "    \"etag\": " << mi.etag.c_str() << "," << endl;
+      ss << "    \"Last-Modified\": \"" << mi.lastModified.c_str() << "\"" << endl;
+      ss << "  }";
       sep = ",";
 		}
-    ss << endl << "]" << endl;
+    ss << endl << "}" << endl;
     f->WriteLine( ss.str() );
 		delete f;
+  }
+  
+  void ReadCacheManifest() {
+    vector< unsigned char > data;
+    bool success = FileReadToMemory( "CacheManifest.json",  data );
+    if( !success || data.size() == 0 ) {
+      Output( "Failed to read the CacheManifest.json file." );
+      return;
+    }
+    
+    ujson::Json * root =  ujson::Decode( reinterpret_cast<const char *>(&data[0]), int( data.size() ) );
+    if( root && root->GetType() == ujson::Type_Object ) {
+      map<string, ujson::Json *> & m = root->m;
+      for( map<string, ujson::Json *>::iterator i = m.begin(); i != m.end(); ++i ) {
+        if( i->second == NULL || i->second->GetType() != ujson::Type_Object ) {
+          continue;
+        }
+        ManifestInfo mi;
+        map<string, ujson::Json *> & f = i->second->m;
+        for( map<string, ujson::Json *>::iterator j = f.begin(); j != f.end(); ++j ) {
+          if( j->second == NULL || j->second->GetType() != ujson::Type_String ) {
+            continue;
+          }
+          if( j->first == "md5" ) {
+            mi.md5 = j->second->s;
+          } else if( j->first == "etag" ) {
+            mi.etag = j->second->s;
+          } else if( j->first == "Last-Modified" ) {
+            mi.lastModified = j->second->s;
+          }
+        }
+        manifest[ i->first ] = mi;
+      }
+    }
+
   }
 	 
 	string NormalizePathSeparator( const string inPath ) {
@@ -214,7 +265,7 @@ namespace {
                 File * file = FileOpenForRead( fn );
                 string md5 = ComputeMd5Sum( file );
                 delete file;
-                manifest[ fn ] = md5;
+                manifest[ fn ].md5 = md5;
                 //Output( "md5 for %s = %s", fn.c_str(), md5.c_str() );
                 WriteCacheManifest();
               }
@@ -373,6 +424,7 @@ namespace r3 {
     } else {
       MakeDirectory( f_cachePath.GetVal().c_str() );
     }
+    ReadCacheManifest();
   }
 
   void ShutdownFilesystem() {

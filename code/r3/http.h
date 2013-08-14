@@ -52,6 +52,7 @@ namespace r3 {
 
 	std::string UrlBuildGet( const std::string & urlBase, const std::map< std::string, std::string > & params );
 	bool UrlReadToMemory( const std::string & url, std::vector< uchar > & data );
+	bool UrlReadToMemory( const std::string & url, std::vector< uchar > & data, std::map<std::string, std::string> & header );
 
 }
 

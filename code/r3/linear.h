@@ -794,6 +794,23 @@ namespace r3 {
 		Matrix3() {
 			MakeIdentity();
 		}
+    
+		T & element (int row, int col) {
+			return m[row][col];
+		}
+		
+		const T & element (int row, int col) const {
+			return m[row][col];
+		}
+
+    void SetValue( const T & t ) {
+      for( int i = 0; i < 3; i++ ) {
+        for( int j = 0; j < 3; j++ ) {
+          element( i, j ) = t;
+        }
+      }
+    }
+    
 		
 		template <typename TIN>
 		Matrix3( const TIN * in ) {
@@ -830,6 +847,28 @@ namespace r3 {
 			m3.m[0][1] = m[1][0]; m3.m[1][1] = m[1][1]; m3.m[2][1] = m[1][2];
 			m3.m[0][2] = m[2][0]; m3.m[1][2] = m[2][1]; m3.m[2][2] = m[2][2];
 			return m3;
+		}
+
+    Matrix3 & MultRight( const Matrix3 & b ) {
+			Matrix3 mt(*this);
+			SetValue(T(0));
+			
+			for(int i=0; i < 3; i++)
+				for(int j=0; j < 3; j++)
+					for(int c=0; c < 3; c++)
+						element(i,j) += mt(i,c) * b(c,j);
+			return *this;
+		}
+		
+		Matrix3 & MultLeft( const Matrix3 & b ) {
+			Matrix3 mt(*this);
+			SetValue(T(0));
+			
+			for(int i=0; i < 3; i++)
+				for(int j=0; j < 3; j++)
+					for(int c=0; c < 3; c++)
+						element(i,j) += b(i,c) * mt(c,j);
+			return *this;
 		}
 		
 		T Determinant() const {
@@ -894,7 +933,17 @@ namespace r3 {
 					   m(2,0) * v.x + m(2,1) * v.y + m(2,2) * v.z);	
 	}
 	
-	
+  template <typename T> inline
+  Matrix3<T> operator * ( const Matrix3<T> & m1, const Matrix3<T> & m2 ) {
+    static Matrix3<T> product;
+      
+    product = m1;
+    product.MultRight(m2);
+      
+    return product;
+  }
+    
+
 	
 	
 	
