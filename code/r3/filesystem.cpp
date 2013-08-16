@@ -47,6 +47,7 @@
 #include "r3/parse.h"
 #include "r3/http.h"
 #include "r3/md5.h"
+#include "r3/thread.h"
 #include "r3/ujson.h"
 
 #if __APPLE__
@@ -69,6 +70,7 @@
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <deque>
 
 using namespace std;
 using namespace r3;
@@ -85,7 +87,7 @@ double apkTimestamp;
 namespace r3 {
 	VarString f_basePath( "f_basePath", "path to the base directory", Var_ReadOnly, "");
 	VarString f_cachePath( "f_cachePath", "path to writable cache directory", Var_ReadOnly, "" );
-	VarString f_cacheSource( "f_cacheSource", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
+	VarString f_networkFilePath( "f_networkFilePath", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
 }
 
 
@@ -409,6 +411,52 @@ namespace {
     //Output( "Success in MakeDirectory for %s", dirname.c_str() );
     return true;
   }
+  
+  
+  Condition filesystemCond;
+  Mutex filesystemMutex;
+  deque<string> fileFetchQueue;
+  
+  void FetchFile( string file ) {
+    ScopedMutex scm( filesystemMutex, R3_LOC );
+    fileFetchQueue.push_back( file );
+  }
+  
+  struct NetworkFileCacheThread : public Thread {
+    NetworkFileCacheThread() : Thread( "NetworkFileCache" ) {}
+    
+		string UrlToFilename( const string & url ) {
+			string s = url.substr( url.rfind('/') ).substr( 1 );
+			return s;
+		}
+		
+		void Run() {
+      int count = 0;
+			while( ++count ) {
+        filesystemCond.Wait();
+        if( ( count % 300 ) != 0) {
+          continue;
+        }
+        Output( "NetworkFileCacheThread tick..." );
+        string file;
+        {
+          ScopedMutex scm( filesystemMutex, R3_LOC );
+          if( fileFetchQueue.size() == 0 ) {
+            continue;
+          }
+          file = fileFetchQueue.front();
+          fileFetchQueue.pop_front();
+          if( file.size() == 0 ) {
+            continue;
+          }
+        }
+        Output( "Processing file %s\n", file.c_str() );
+        
+      }
+    }
+	};
+	
+	NetworkFileCacheThread networkFileCacheThread;
 
 }
 
@@ -425,10 +473,15 @@ namespace r3 {
       MakeDirectory( f_cachePath.GetVal().c_str() );
     }
     ReadCacheManifest();
+    networkFileCacheThread.Start();
   }
 
   void ShutdownFilesystem() {
     WriteCacheManifest();
+  }
+  
+  void TickFilesystem() {
+    filesystemCond.Broadcast();
   }
 
   File * FileOpenForWrite( const string & inFileName ) {
@@ -465,6 +518,7 @@ namespace r3 {
 
   File * FileOpenForRead( const string & inFileName ) {
     string filename = NormalizePathSeparator( inFileName );
+    FetchFile( filename );
 #if ! ANDROID
     // first look for it in cache
     if ( f_cachePath.GetVal().size() > 0 ) {

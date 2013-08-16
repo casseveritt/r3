@@ -52,6 +52,7 @@ namespace r3 {
 
 	void InitFilesystem();
   void ShutdownFilesystem();
+  void TickFilesystem();
 	
 	enum SeekEnum {
 		Seek_Begin,
