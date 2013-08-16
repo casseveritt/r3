@@ -87,7 +87,7 @@ double apkTimestamp;
 namespace r3 {
 	VarString f_basePath( "f_basePath", "path to the base directory", Var_ReadOnly, "");
 	VarString f_cachePath( "f_cachePath", "path to writable cache directory", Var_ReadOnly, "" );
-	VarString f_networkFilePath( "f_networkFilePath", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
+	VarString f_netPath( "f_netPath", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
 }
 
 
@@ -121,12 +121,23 @@ namespace {
   }
   
   struct ManifestInfo {
+    ManifestInfo() : lastTry(0) {}
+    string url;
     string md5;
     string etag;
     string lastModified;
+    int lastTry;
   };
+  
+  Condition filesystemCond;
+  Mutex filesystemMutex;
   map<string, ManifestInfo> manifest;
-
+  
+  ManifestInfo & GetManifestInfo( const string & filename ) {
+    ScopedMutex scm( filesystemMutex, R3_LOC );
+    return manifest[ filename ];
+  }
+  
   void WriteCacheManifest() {
     if( f_cachePath.GetVal().size() == 0 ) {
       return;
@@ -142,12 +153,45 @@ namespace {
       ManifestInfo &mi = it->second;
       ss << sep << endl;
       ss << "  \"" << it->first.c_str() << "\": {" << endl;
-      ss << "    \"md5\": \"" << mi.md5.c_str() << "\"," << endl;
-      if( mi.etag.size() < 2 ) {
-        mi.etag = "\"\"";
+      bool prev = false;
+      if( mi.url.size() ) {
+        if( prev ) {
+          ss << "," << endl;
+        }
+        prev = true;
+        ss << "    \"url\": " << mi.url.c_str() << "\"";
       }
-      ss << "    \"etag\": " << mi.etag.c_str() << "," << endl;
-      ss << "    \"Last-Modified\": \"" << mi.lastModified.c_str() << "\"" << endl;
+      if( mi.md5.size() ) {
+        if( prev ) {
+          ss << "," << endl;
+        }
+        prev = true;
+        ss << "    \"md5\": \"" << mi.md5.c_str() << "\"";
+      }
+      if( mi.etag.size() ) {
+        if( prev ) {
+          ss << "," << endl;
+        }
+        prev = true;
+        ss << "    \"etag\": \"" << mi.etag.c_str() << "\"";
+      }
+      if( mi.lastModified.size() ) {
+        if( prev ) {
+          ss << "," << endl;
+        }
+        prev = true;
+        ss << "    \"Last-Modified\": \"" << mi.lastModified.c_str() << "\"";
+      }
+      if( mi.lastTry != 0 ) {
+        if( prev ) {
+          ss << "," << endl;
+        }
+        prev = true;
+        ss << "    \"lastTry\": \"" << mi.lastTry << "\"";
+      }
+      if( prev ) {
+        ss << endl;
+      }
       ss << "  }";
       sep = ",";
 		}
@@ -173,24 +217,27 @@ namespace {
         }
         ManifestInfo mi;
         map<string, ujson::Json *> & f = i->second->m;
-        for( map<string, ujson::Json *>::iterator j = f.begin(); j != f.end(); ++j ) {
-          if( j->second == NULL || j->second->GetType() != ujson::Type_String ) {
-            continue;
-          }
-          if( j->first == "md5" ) {
-            mi.md5 = j->second->s;
-          } else if( j->first == "etag" ) {
-            mi.etag = j->second->s;
-          } else if( j->first == "Last-Modified" ) {
-            mi.lastModified = j->second->s;
-          }
+        if( f.count( "url" ) && f["url"]->GetType() == ujson::Type_String ) {
+          mi.url = f["url"]->s;
         }
-        manifest[ i->first ] = mi;
+        if( f.count( "md5" ) && f["md5"]->GetType() == ujson::Type_String ) {
+          mi.md5 = f["md5"]->s;
+        }
+        if( f.count( "etag" ) && f["etag"]->GetType() == ujson::Type_String ) {
+          mi.etag = f["etag"]->s;
+        }
+        if( f.count( "Last-Modified" ) && f["Last-Modified"]->GetType() == ujson::Type_String ) {
+          mi.lastModified = f["Last-Modified"]->s;
+        }
+        if( f.count( "lastTry" ) && f["lastTry"]->GetType() == ujson::Type_Number ) {
+          mi.lastTry = f["lastTry"]->n;
+        }
+        GetManifestInfo( i->first ) = mi;
       }
     }
-
+    
   }
-	 
+  
 	string NormalizePathSeparator( const string inPath ) {
 		string path = inPath;
 		for ( int i = 0; i < (int)path.size(); i++ ) {
@@ -241,80 +288,83 @@ namespace {
   
   
   class StdCFile : public r3::File {
-    public:
-      FILE *fp;
-      bool unlinkOnDestruction;
-      bool write;
-      string name;
-      StdCFile( const string & filename, bool filewrite )
-        : fp( 0 )
-          , unlinkOnDestruction( false )
-          , write( filewrite )
-          , name( filename )
+  public:
+    FILE *fp;
+    bool unlinkOnDestruction;
+    bool write;
+    bool internal;
+    string name;
+    StdCFile( const string & filename, bool filewrite )
+    : fp( 0 )
+    , unlinkOnDestruction( false )
+    , write( filewrite )
+    , internal( false )
+    , name( filename )
     {}
-
-      virtual ~StdCFile() {
-        if ( fp ) {
-          Fclose( fp );
-          if( unlinkOnDestruction > 0 ) {
-            unlink( name.c_str() );
-          }
-          if( write ) {
-            size_t loc = name.find( f_cachePath.GetVal() );
-            if( loc != string::npos ) {
-              string fn = name.substr( name.rfind('/') + 1 );
-              if( fn != "CacheManifest.json" ) {
-                File * file = FileOpenForRead( fn );
-                string md5 = ComputeMd5Sum( file );
-                delete file;
-                manifest[ fn ].md5 = md5;
-                //Output( "md5 for %s = %s", fn.c_str(), md5.c_str() );
-                WriteCacheManifest();
-              }
+    
+    virtual ~StdCFile() {
+      if ( fp ) {
+        Fclose( fp );
+        if( unlinkOnDestruction > 0 ) {
+          unlink( name.c_str() );
+        }
+        if( write ) {
+          size_t loc = name.find( f_cachePath.GetVal() );
+          if( loc != string::npos ) {
+            string fn = name.substr( name.rfind('/') + 1 );
+            if( internal == false && fn != "CacheManifest.json" ) {
+              StdCFile * file = reinterpret_cast<StdCFile *>( FileOpenForRead( fn ) );
+              file->internal = true;
+              string md5 = ComputeMd5Sum( file );
+              delete file;
+              GetManifestInfo( fn ).md5 = md5;
+              //Output( "md5 for %s = %s", fn.c_str(), md5.c_str() );
+              //WriteCacheManifest();
             }
           }
         }
       }
-      virtual int Read( void *data, int size, int nitems ) {
-        return (int)fread( data, (size_t)size, (size_t)nitems, fp );
-      }
-
-      virtual int Write( const void *data, int size, int nitems ) {
-        return (int)fwrite( data, size, nitems, fp );
-      }
-
-      virtual void Seek( SeekEnum whence, int offset ) {
-        fseek( fp, offset, (int)whence );
-      }
-
-      virtual int Tell() {
-        return (int)ftell( fp );
-      }
-
-      virtual int Size() {
-        int curPos = Tell();
-        Seek( Seek_End, 0 );
-        int size = Tell();
-        Seek( Seek_Begin, curPos );
-        return size;
-      }
-
-      virtual bool AtEnd() {
-        return feof( fp ) != 0;
-      }
-
-      virtual double GetModifiedTime() {
-        struct stat s;
-        fstat( fileno( fp ), & s );
+    }
+    virtual int Read( void *data, int size, int nitems ) {
+      return (int)fread( data, (size_t)size, (size_t)nitems, fp );
+    }
+    
+    virtual int Write( const void *data, int size, int nitems ) {
+      return (int)fwrite( data, size, nitems, fp );
+    }
+    
+    virtual void Seek( SeekEnum whence, int offset ) {
+      fseek( fp, offset, (int)whence );
+    }
+    
+    virtual int Tell() {
+      return (int)ftell( fp );
+    }
+    
+    virtual int Size() {
+      int curPos = Tell();
+      Seek( Seek_End, 0 );
+      int size = Tell();
+      Seek( Seek_Begin, curPos );
+      return size;
+    }
+    
+    virtual bool AtEnd() {
+      return feof( fp ) != 0;
+    }
+    
+    virtual double GetModifiedTime() {
+      struct stat s;
+      fstat( fileno( fp ), & s );
 #if ANDROID || __linux__
-        return double( s.st_mtime );
+      return double( s.st_mtime );
 #else
-        return double( s.st_mtimespec.tv_sec );
+      return double( s.st_mtimespec.tv_sec );
 #endif
-      }
-
+    }
+    
   };
-
+  
   bool FindDirectory( VarString & path, const char * dirName ) {
     string dirname = dirName;
 #if ! _WIN32
@@ -374,7 +424,7 @@ namespace {
 #endif
     return true;
   }
-
+  
   bool MakeDirectory( const char * dirName ) {
     assert( dirName );
     vector<Token> tokens = TokenizeString( dirName, "/" );
@@ -412,18 +462,35 @@ namespace {
     return true;
   }
   
-  
-  Condition filesystemCond;
-  Mutex filesystemMutex;
   deque<string> fileFetchQueue;
   
-  void FetchFile( string file ) {
-    ScopedMutex scm( filesystemMutex, R3_LOC );
-    fileFetchQueue.push_back( file );
+  File * CachedFileOpenForWrite( const string & inFileName, ManifestInfo & mi ) {
+    string path = f_cachePath.GetVal();
+    if( path.size() == 0 ) {
+      return NULL;
+    }
+    string filename = NormalizePathSeparator( inFileName );
+    string dir = path;
+    if( filename.rfind('/') != string::npos ) {
+      dir += filename.substr( 0, filename.rfind('/') );
+      if ( MakeDirectory( dir.c_str() ) == false ) {
+        return NULL;
+      }
+    }
+    string fn = path + filename;
+    FILE * fp = Fopen( fn.c_str(), "wb" );
+    Output( "Opening file %s for write %s", fn.c_str(), fp ? "succeeded" : "failed" );
+    if ( fp ) {
+      StdCFile * F = new StdCFile( fn, true );
+      F->fp = fp;
+      GetManifestInfo( filename ) = mi;
+      return F;
+    }
+    return NULL;
   }
   
-  struct NetworkFileCacheThread : public Thread {
-    NetworkFileCacheThread() : Thread( "NetworkFileCache" ) {}
+  struct NetCacheThread : public Thread {
+    NetCacheThread() : Thread( "NetCache" ) {}
     
 		string UrlToFilename( const string & url ) {
 			string s = url.substr( url.rfind('/') ).substr( 1 );
@@ -456,26 +523,52 @@ namespace {
     }
 	};
 	
-	NetworkFileCacheThread networkFileCacheThread;
-
+	NetCacheThread netCacheThread;
+  
+  File * CachedFileOpenForRead( const string & inFileName ) {
+    string path = f_cachePath.GetVal();
+    if( path.size() == 0 ) {
+      return NULL;
+    }
+    string filename = NormalizePathSeparator( inFileName );
+    string dir = path;
+    if( filename.rfind('/') != string::npos ) {
+      dir += filename.substr( 0, filename.rfind('/') );
+      if ( MakeDirectory( dir.c_str() ) == false ) {
+        return NULL;
+      }
+    }
+    string fn = path + filename;
+    FILE * fp = Fopen( fn.c_str(), "rb" );
+    Output( "Opening file %s for read %s", fn.c_str(), fp ? "succeeded" : "failed" );
+    if ( fp ) {
+      StdCFile * F = new StdCFile( fn, true );
+      F->fp = fp;
+      return F;
+    } else {
+      ScopedMutex scm( filesystemMutex, R3_LOC );
+      fileFetchQueue.push_back( filename );
+    }
+    return NULL;
+  }
+  
 }
 
 namespace r3 {
-
+  
   void InitFilesystem() {
     if ( FindDirectory( f_basePath, "base" ) == false ) {
       Output( "exiting due to invalid %s: %s", f_basePath.Name().Str().c_str(), f_basePath.GetVal().c_str() );
       exit( 1 );
     }
-    if( f_cachePath.GetVal().size() == 0 ) {
-      FindDirectory( f_cachePath, "cache" );
-    } else {
-      MakeDirectory( f_cachePath.GetVal().c_str() );
+    f_cachePath.SetVal( f_basePath.GetVal() + "/../cache/" );
+    if( MakeDirectory( f_cachePath.GetVal().c_str() ) == false ) {
+      exit( 1 );
     }
     ReadCacheManifest();
-    networkFileCacheThread.Start();
+    netCacheThread.Start();
   }
-
+  
   void ShutdownFilesystem() {
     WriteCacheManifest();
   }
@@ -483,51 +576,19 @@ namespace r3 {
   void TickFilesystem() {
     filesystemCond.Broadcast();
   }
-
+  
   File * FileOpenForWrite( const string & inFileName ) {
-    string filename = NormalizePathSeparator( inFileName );
-    vector<string> paths;
-    if ( f_cachePath.GetVal().size() > 0 ) {
-      paths.push_back( f_cachePath.GetVal() );
-    }
-    paths.push_back( f_basePath.GetVal() );
-    vector<Token> tokens = TokenizeString( filename.c_str(), "/" );
-    for ( int i = 0; i < (int)paths.size(); i++ ) {
-      string & path = paths[i];
-      if ( path.size() > 0 ) {
-        string dir = path;
-        for ( int j = 0; j < (int)tokens.size() - 1; j++ ) {
-          dir += tokens[j].valString;
-          dir += "/";
-        }
-        if ( MakeDirectory( dir.c_str() ) == false ) {
-          continue;
-        }
-        string fn = path + filename;
-        FILE * fp = Fopen( fn.c_str(), "wb" );
-        Output( "Opening file %s for write %s", fn.c_str(), fp ? "succeeded" : "failed" );
-        if ( fp ) {
-          StdCFile * F = new StdCFile( fn, true );
-          F->fp = fp;
-          return F;
-        }
-      }
-    }
-    return NULL;
+    ManifestInfo mi;
+    mi.url = "local";
+    File * f = CachedFileOpenForWrite( inFileName, mi );
+    return f;
   }
-
+  
   File * FileOpenForRead( const string & inFileName ) {
     string filename = NormalizePathSeparator( inFileName );
-    FetchFile( filename );
-#if ! ANDROID
-    // first look for it in cache
-    if ( f_cachePath.GetVal().size() > 0 ) {
-      string fn = f_cachePath.GetVal() + filename;
-      FILE * fp = Fopen( fn.c_str(), "rb" );
-      Output( "Opening file %s for read %s", fn.c_str(), fp ? "succeeded" : "failed" );
-      if ( fp ) {
-        StdCFile * F = new StdCFile( fn, false );
-        F->fp = fp;
+    {
+      File *F = CachedFileOpenForRead( inFileName );
+      if( F ) {
         return F;
       }
     }
@@ -542,27 +603,7 @@ namespace r3 {
         return F;
       }
     }
-#else
-    if ( apkTimestamp == 0.0 ) {
-      if (  app_apkPath.GetVal().size() > 0  ) {
-        apkTimestamp = getFileTimestamp( app_apkPath.GetVal().c_str() );
-      }
-    }
-    // check in base
-    {
-      string fn = f_basePath.GetVal() + filename;
-      if ( apkTimestamp < getFileTimestamp( fn.c_str() ) ) {
-        FILE * fp = Fopen( fn.c_str(), "rb" );
-        Output( "Opening file %s for read %s", fn.c_str(), fp ? "succeeded" : "failed" );
-        if ( fp ) {
-          StdCFile * F = new StdCFile(fn, false);
-          F->fp = fp;
-          return F;
-        }
-      } else {
-        Output( "File is older than the apk file.  Will try to materialize it. file=%lf  apk=%lf", getFileTimestamp( fn.c_str() ), apkTimestamp );
-      }
-    }
+#if ANDROID
     // try to materialize the file, then look for it again in the base path...
     if ( f_basePath.GetVal().size() > 0 ) {
       if ( appMaterializeFile( filename.c_str() ) ) {
@@ -584,8 +625,8 @@ namespace r3 {
     // then give up
     return NULL;
   }
-
-
+  
+  
   void FileDelete( const string & fileName ) {
     string filename = NormalizePathSeparator( fileName );
     vector<string> paths;
@@ -610,7 +651,7 @@ namespace r3 {
         FILE * fp = Fopen( fn.c_str(), "wb" );
         bool found = fp != NULL;
         Fclose( fp );
-
+        
         if( found ) {
           Output( "Deleting file %s", fn.c_str() );
           unlink( fn.c_str() );
@@ -619,9 +660,9 @@ namespace r3 {
       }
     }
   }
-
-
-
+  
+  
+  
   bool FileReadToMemory( const string & inFileName, vector< unsigned char > & data ) {
     string filename = NormalizePathSeparator( inFileName );
     File *f = FileOpenForRead( filename );
@@ -636,8 +677,8 @@ namespace r3 {
     delete f;
     return true;
   }
-
-
+  
+  
   string File::ReadLine() {
     string ret;
     char s[256];
@@ -662,11 +703,11 @@ namespace r3 {
     } while( l );
     return ret;
   }
-
+  
   void File::WriteLine( const string & str ) {
     string s = str + "\n";
     Write( s.c_str(), 1, (int)s.size() );
   }
-
+  
 }
 
