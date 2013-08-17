@@ -92,8 +92,10 @@ namespace r3 {
 	VarString f_netPath( "f_netPath", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
 }
 
-// Try to download a the file again if it's been this long
-#define CACHE_FILE_TIMEOUT (24 * 3600)
+// Try to download a the file again if it's been this long (in seconds)
+#define CACHE_FILE_TIMEOUT 3600
+// Wait at least this long after a cached file has been opened before refreshing it from the net (in seconds)
+#define CACHE_FETCH_DELAY 15
 
 namespace {
   File * CachedFileOpenForPrivateRead( const string & inFileName );
@@ -560,14 +562,14 @@ namespace {
           continue;
         }
         if( ( t - mi.lastTry ) < CACHE_FILE_TIMEOUT ) {
-          Output( "NetCache - skipping %s, last try only %lf.0 minutes ago\n", file.c_str(), (t - mi.lastTry ) / 60 );
+          Output( "NetCache - skipping %s, last try only %.0lf minutes ago", file.c_str(), (t - mi.lastTry ) / 60 );
           continue;
         }
-        Output( "NetCache looking for %s\n", file.c_str() );
+        Output( "NetCache looking for %s", file.c_str() );
         mi.lastTry = t;
         for( int i = 0; i < urls.size(); i++ ) {
           string url = urls[i].valString;
-          Output( "NetCache trying %s -  %s\n", url.c_str(), file.c_str() );
+          Output( "NetCache trying %s -  %s", url.c_str(), file.c_str() );
           vector<uchar> data;
           map<string,string> header;
           if( url == mi.url && mi.etag.size() ) {
@@ -629,7 +631,7 @@ namespace {
     File *fp = CachedFileOpenForPrivateRead( inFileName );
     if( fp && inFileName != "CacheManifest.json" ) {
       string filename = NormalizePathSeparator( inFileName );
-      PushFileFetch( filename, GetTime() + 15.0 );
+      PushFileFetch( filename, GetTime() + CACHE_FETCH_DELAY );
     }
     return fp;
   }

@@ -351,7 +351,11 @@ namespace r3 {
 
 		char buf[512];
 		int sz;
-		r3Sprintf( buf, "GET %s HTTP/1.1\r\nHost: %s:%d\r\n\r\n", u.path.c_str(), u.hostname.c_str(), u.port );
+    if( header.count("etag") == 0 ) {
+      r3Sprintf( buf, "GET %s HTTP/1.1\r\nHost: %s:%d\r\n\r\n", u.path.c_str(), u.hostname.c_str(), u.port );
+    } else {
+      r3Sprintf( buf, "GET %s HTTP/1.1\r\nIf-None-Match: \"%s\"\r\nHost: %s:%d\r\n\r\n", u.path.c_str(), header["etag"].c_str(), u.hostname.c_str(), u.port );
+    }
 		sz = (int)strlen( buf );
 		Output( "Sending http request (%d chars): %s", sz, buf );
 		sock.Write( buf, sz );
@@ -359,7 +363,8 @@ namespace r3 {
 
     // add If-None-Match with etag in the header....
 		HttpResponse resp ( is );
-    if( resp.code == 404 ) {
+    if( resp.code == 404 || resp.code == 304 ) {
+      Output( "Http exiting read with code %d", resp.code );
       sock.Disconnect();
       return false;
     }
