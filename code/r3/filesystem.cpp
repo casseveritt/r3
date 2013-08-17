@@ -48,6 +48,7 @@
 #include "r3/http.h"
 #include "r3/md5.h"
 #include "r3/thread.h"
+#include "r3/time.h"
 #include "r3/ujson.h"
 
 #if __APPLE__
@@ -70,6 +71,7 @@
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <set>
 #include <deque>
 
 using namespace std;
@@ -90,9 +92,12 @@ namespace r3 {
 	VarString f_netPath( "f_netPath", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
 }
 
+// Try to download a the file again if it's been this long
+#define CACHE_FILE_TIMEOUT (24 * 3600)
 
 namespace {
-	
+  File * CachedFileOpenForPrivateRead( const string & inFileName );
+  
   string ComputeMd5Sum(File *file) {
     if( file == NULL || file->Size() == 0 ) {
       return "00000000000000000000000000000000000000";
@@ -159,7 +164,7 @@ namespace {
           ss << "," << endl;
         }
         prev = true;
-        ss << "    \"url\": " << mi.url.c_str() << "\"";
+        ss << "    \"url\": \"" << mi.url.c_str() << "\"";
       }
       if( mi.md5.size() ) {
         if( prev ) {
@@ -187,7 +192,7 @@ namespace {
           ss << "," << endl;
         }
         prev = true;
-        ss << "    \"lastTry\": \"" << mi.lastTry << "\"";
+        ss << "    \"lastTry\": " << mi.lastTry;
       }
       if( prev ) {
         ss << endl;
@@ -217,6 +222,7 @@ namespace {
         }
         ManifestInfo mi;
         map<string, ujson::Json *> & f = i->second->m;
+        string fn = i->first;
         if( f.count( "url" ) && f["url"]->GetType() == ujson::Type_String ) {
           mi.url = f["url"]->s;
         }
@@ -313,7 +319,7 @@ namespace {
           if( loc != string::npos ) {
             string fn = name.substr( name.rfind('/') + 1 );
             if( internal == false && fn != "CacheManifest.json" ) {
-              StdCFile * file = reinterpret_cast<StdCFile *>( FileOpenForRead( fn ) );
+              StdCFile * file = reinterpret_cast<StdCFile *>( CachedFileOpenForPrivateRead( fn ) );
               file->internal = true;
               string md5 = ComputeMd5Sum( file );
               delete file;
@@ -462,7 +468,38 @@ namespace {
     return true;
   }
   
-  deque<string> fileFetchQueue;
+  struct FileFetchEntry {
+    FileFetchEntry() : notBefore( 0.0 ) {}
+    FileFetchEntry( const string & file_name, double not_before ) : filename( file_name ), notBefore( not_before ) {}
+    string filename;
+    double notBefore;
+  };
+  
+  deque<FileFetchEntry> fetchQueue;
+  set<string> fetchSet;
+  
+  void PushFileFetch( const string & filename, double notBefore = 0.0 ) {
+    ScopedMutex scm( filesystemMutex, R3_LOC );
+    FileFetchEntry ffe( filename, notBefore );
+    if( fetchSet.count( ffe.filename ) ) {
+      Output( "PushFileFetch: Already have %s", ffe.filename.c_str() );
+      return;
+    }
+    fetchSet.insert( filename );
+    fetchQueue.push_back( ffe );
+  }
+  
+  bool PopFileFetch( FileFetchEntry & ffe ) {
+    ScopedMutex scm( filesystemMutex, R3_LOC );
+    if( fetchQueue.size() == 0 ) {
+      return false;
+    }
+    ffe = fetchQueue.front();
+    fetchQueue.pop_front();
+    fetchSet.erase( ffe.filename );
+    return true;
+  }
+  
   
   File * CachedFileOpenForWrite( const string & inFileName, ManifestInfo & mi ) {
     string path = f_cachePath.GetVal();
@@ -501,36 +538,75 @@ namespace {
       int count = 0;
 			while( ++count ) {
         filesystemCond.Wait();
-        if( ( count % 300 ) != 0) {
+        FileFetchEntry ffe;
+        if( PopFileFetch( ffe ) == false ) {
           continue;
         }
-        Output( "NetworkFileCacheThread tick..." );
+        double t = GetTime();
         string file;
         {
-          ScopedMutex scm( filesystemMutex, R3_LOC );
-          if( fileFetchQueue.size() == 0 ) {
+          if( t < ffe.notBefore ) {
+            PushFileFetch( ffe.filename, ffe.notBefore );
             continue;
           }
-          file = fileFetchQueue.front();
-          fileFetchQueue.pop_front();
+          file = ffe.filename;
           if( file.size() == 0 ) {
             continue;
           }
         }
-        Output( "Processing file %s\n", file.c_str() );
-        
+        vector<Token> urls = TokenizeString( f_netPath.GetVal().c_str(), ";" );
+        ManifestInfo mi = GetManifestInfo( file );
+        if( mi.url == "local" ) {
+          continue;
+        }
+        if( ( t - mi.lastTry ) < CACHE_FILE_TIMEOUT ) {
+          Output( "NetCache - skipping %s, last try only %lf.0 minutes ago\n", file.c_str(), (t - mi.lastTry ) / 60 );
+          continue;
+        }
+        Output( "NetCache looking for %s\n", file.c_str() );
+        mi.lastTry = t;
+        for( int i = 0; i < urls.size(); i++ ) {
+          string url = urls[i].valString;
+          Output( "NetCache trying %s -  %s\n", url.c_str(), file.c_str() );
+          vector<uchar> data;
+          map<string,string> header;
+          if( url == mi.url && mi.etag.size() ) {
+            header["etag"] = mi.etag;
+          }
+          if( UrlReadToMemory( url + '/' + file, data, header ) ) {
+            mi.url = url;
+            if( header.count( "Last-Modified" ) ) {
+              mi.lastModified = header["Last-Modified"];
+            }
+            if( header.count( "etag" ) ) {
+              mi.etag = header["etag"];
+              if( mi.etag.size() && mi.etag[0] == '"' ) {
+                mi.etag = mi.etag.substr( 1, mi.etag.size() - 2 );
+              }
+            }
+            mi.lastTry = GetTime();
+            File * f = CachedFileOpenForWrite( file, mi );
+            f->Write( &data[0], 1, (int)data.size() );
+            delete f;
+            break;
+          }
+        }
+        GetManifestInfo( file ) = mi;
       }
     }
 	};
 	
 	NetCacheThread netCacheThread;
   
-  File * CachedFileOpenForRead( const string & inFileName ) {
+  File * CachedFileOpenForPrivateRead( const string & inFileName ) {
     string path = f_cachePath.GetVal();
     if( path.size() == 0 ) {
       return NULL;
     }
     string filename = NormalizePathSeparator( inFileName );
+    if( filename.size() && filename[0] == '/' ) {
+      return NULL;
+    }
     string dir = path;
     if( filename.rfind('/') != string::npos ) {
       dir += filename.substr( 0, filename.rfind('/') );
@@ -545,11 +621,17 @@ namespace {
       StdCFile * F = new StdCFile( fn, true );
       F->fp = fp;
       return F;
-    } else {
-      ScopedMutex scm( filesystemMutex, R3_LOC );
-      fileFetchQueue.push_back( filename );
     }
     return NULL;
+  }
+
+  File * CachedFileOpenForRead( const string & inFileName ) {
+    File *fp = CachedFileOpenForPrivateRead( inFileName );
+    if( fp && inFileName != "CacheManifest.json" ) {
+      string filename = NormalizePathSeparator( inFileName );
+      PushFileFetch( filename, GetTime() + 15.0 );
+    }
+    return fp;
   }
   
 }

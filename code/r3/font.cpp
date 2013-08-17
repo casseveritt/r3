@@ -3,7 +3,7 @@
  *
  */
 
-/* 
+/*
  Copyright (c) 2010 Cass Everitt
  All rights reserved.
  
@@ -22,7 +22,7 @@
  
  * The names of contributors to this software may not be used
  to endorse or promote products derived from this software
- without specific prior written permission. 
+ without specific prior written permission.
  
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -34,8 +34,8 @@
  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
- POSSIBILITY OF SUCH DAMAGE. 
+ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
  
  
  Cass Everitt
@@ -97,7 +97,7 @@ namespace {
 		}
 	};
 	FontDatabase *fontDatabase;
-
+  
 	bool initialized = false;
 	
 	
@@ -113,7 +113,7 @@ namespace {
 						state++;
 						unicode = 0;
 					} else if ( s[ i ] == '&' ) {
-					    state = 10;
+            state = 10;
 						unicode = 0;
 					} else {
 						c.push_back( s[ i ] );
@@ -188,7 +188,7 @@ namespace {
 							state--;
 						}
 						state = 0;
-					} else { 
+					} else {
 						int ival = -1;
 						if ( s[ i ] >= '0' && s[ i ] <= '9' ) {
 							ival = s[ i ] - '0';
@@ -201,9 +201,9 @@ namespace {
 								c.push_back( s[ i - state ] );
 								state--;
 							}
-							state = 0;							
+							state = 0;
 						}
-					}					
+					}
 				}
 					
 				default:
@@ -211,7 +211,7 @@ namespace {
 			}
 		}
 	}
-		
+  
 	struct CachedGlyph {
 		unsigned short x0, y0, x1, y1; // coordinates of bbox in bitmap
 		float xoff, yoff, xadvance;
@@ -237,7 +237,7 @@ namespace {
 		q.t0 = g.y0 / h;
 		q.s1 = g.x1 / w;
 		q.t1 = g.y1 / h;
-				
+    
 		*xpos += g.xadvance * scale;
 		return q;
 	}
@@ -247,12 +247,12 @@ namespace {
 	struct StbCachedGlyphFont : public r3::Font, public TextureAllocListener {
 		StbCachedGlyphFont( const string & texName, const string & ttfFilename, const string &ttfFallback );
 		virtual ~StbCachedGlyphFont();
-		virtual void Print( const std::string &text, float x, float y, float scale = 1.0f, TextAlignmentEnum hAlign = Align_Min, TextAlignmentEnum vAlign = Align_Min );	
+		virtual void Print( const std::string &text, float x, float y, float scale = 1.0f, TextAlignmentEnum hAlign = Align_Min, TextAlignmentEnum vAlign = Align_Min );
 		virtual Bounds2f GetStringDimensions( const std::string &text, float scale = 1.0f );
 		virtual float GetAscent() { return fv[0].ascent; }
 		virtual float GetDescent() { return fv[0].descent; }
 		virtual float GetLineGap() { return fv[0].lineGap; }
-        virtual void OnTextureAlloc( Texture * t ) { usageCount = 1; memset( used, 0, sizeof( used ) ); gm.clear(); }
+    virtual void OnTextureAlloc( Texture * t ) { usageCount = 1; memset( used, 0, sizeof( used ) ); gm.clear(); }
 		map< int, CachedGlyph > gm;
 		static const int imgSize = 512;
 		Texture2D *ftex;
@@ -265,7 +265,7 @@ namespace {
 					ascent = rhs.ascent;
 					descent = rhs.descent;
 					lineGap = rhs.lineGap;
-					scale = rhs.scale;					
+					scale = rhs.scale;
 					reverse = rhs.reverse;
 				}
 			}
@@ -273,11 +273,11 @@ namespace {
 				File *f = FileOpenForRead( ttfFilename );
 #if ANDROID
 				if( f == NULL ) {
-					f = FileOpenForRead( string( "../../../../../../../system/fonts/" ) + ttfFilename );
+					f = FileOpenForRead( string( "/system/fonts/" ) + ttfFilename );
 				}
-                if( f == NULL ) {
-                    f = FileOpenForRead( "LiberationSans-Regular.ttf" );
-                }
+        if( f == NULL ) {
+          f = FileOpenForRead( "LiberationSans-Regular.ttf" );
+        }
 #endif
 				ttf.resize( f->Size() );
 				f->Read( &ttf[0], 1, (int)ttf.size() );
@@ -306,12 +306,12 @@ namespace {
 			bool reverse;
 			vector<uchar> ttf;  // contents of the ttf file
 		};
-
+    
 		vector<FontData> fv;
 		uint64 usageCount;
 		uint64 used[64];    // 64b x 64b used mask... each bit corresponds to an 8x8 pixel block in the font image
 		const CachedGlyph & GetGlyph( int idx );
-		bool FindSpace( int glyphBlocksWide, int glyphBlocksHigh, int & x, int & y ); 
+		bool FindSpace( int glyphBlocksWide, int glyphBlocksHigh, int & x, int & y );
 		void MarkGlyph( int idx, bool bit );
 	};
 	
@@ -323,16 +323,16 @@ namespace {
 			fv.push_back( FontData() );
 			fv.back().Init( ttfFallback, imgSize );
 		}
-
+    
 		usageCount = 1;
 		memset( used, 0, sizeof( used ) );
 		
 		ftex = Texture2D::Create( texName, TextureFormat_RGBA, imgSize, imgSize );
 		uchar * img =  new uchar[ imgSize * imgSize * 4 ];
 		memset( img, 0, imgSize * imgSize * 4 );
-		ftex->SetImage( 0, img );		
+		ftex->SetImage( 0, img );
 		delete [] img;
-        ftex->SetAllocListener( this );
+    ftex->SetAllocListener( this );
 	}
 	
 	StbCachedGlyphFont::~StbCachedGlyphFont() {
@@ -349,10 +349,10 @@ namespace {
 				file->Write( bytes, 1, sz );
 				delete file;
 			}
-			free( bytes );			
+			free( bytes );
 		}
 		{
-            int level = 1;
+      int level = 1;
 			ftex->GetImage( level, &pixels[ 0 ] );
 			int isz = imgSize >> level;
 			int sz = 0;
@@ -362,9 +362,9 @@ namespace {
 				file->Write( bytes, 1, sz );
 				delete file;
 			}
-			free( bytes );			
+			free( bytes );
 		}
-#endif		
+#endif
 	}
 	
 	bool StbCachedGlyphFont::FindSpace( int glyphBlocksWide, int glyphBlocksHigh, int & x, int & y ) {
@@ -384,7 +384,7 @@ namespace {
 					//Output( "Found space for glyph w=%d, h=%d at x=%d, y=%d", glyphBlocksWide, glyphBlocksHigh, x, y );
 					return true;
 				}
-			} 
+			}
 		}
 		Output( "No space found for glyph w=%d, h=%d", glyphBlocksWide, glyphBlocksHigh );
 		return false;
@@ -404,7 +404,7 @@ namespace {
 		//Output( "%s glyph %d from %s, x=%d, y=%d, w=%d, h=%d, hmask=%llx", bit ? "Marking" : "Erasing", idx, name.c_str(), bx, by, gbw, gbh, hmask  );
 		if( bit ) {
 			for( int j = by; j < by + gbh; j++ ) {
-				used[ j ] = used[ j ] | hmask;				
+				used[ j ] = used[ j ] | hmask;
 			}
 		} else {
 			for( int j = by; j < by + gbh; j++ ) {
@@ -444,12 +444,12 @@ namespace {
 			int gw = x1 - x0;
 			int gh = y1 - y0;
 			
-			// 2) 
+			// 2)
 			int gbw = ( gw + 15 ) / 8; // half-block border for mips
-			int gbh = ( gh + 15 ) / 8; 
+			int gbh = ( gh + 15 ) / 8;
 			int x, y;
 			while( FindSpace( gbw, gbh, x, y ) == false  ) {
-				uint64 oldest = ~0;			
+				uint64 oldest = ~0;
 				int victim = -1;
 				for( map< int, CachedGlyph >::iterator it = gm.begin(); it != gm.end(); ++it ) {
 					CachedGlyph & g = it->second;
@@ -468,7 +468,7 @@ namespace {
 			g.x0 = x * 8 + xoff;  // center glyph within its allocated area
 			g.x1 = g.x0 + gw;
 			int yoff = ( gbh * 8 - gh ) / 2;
-			g.y0 = y * 8 + yoff; 
+			g.y0 = y * 8 + yoff;
 			g.y1 = g.y0 + gh;
 			g.xoff = x0;
 			g.yoff = -y1;
@@ -518,10 +518,10 @@ namespace {
 								}
 							}
 							pixels[ idx + 3 ] = byte( wsum / sum );
-						}  
-					}				
-				}			
-			}		
+						}
+					}
+				}
+			}
 			
 			ftex->Bind( 0 );
 			// block size is 8, so we do mip levels 4 levels
@@ -542,11 +542,11 @@ namespace {
 						alpha += pixels[ ( ( 2 * j + 1 ) * ww + ( 2 * i + 1 ) ) * 4 + 3 ];
 						alpha += 2;
 						alpha >>= 2;
-						pixels[ ( j * w2 + i ) * 4 + 3 ] = byte( alpha );					
+						pixels[ ( j * w2 + i ) * 4 + 3 ] = byte( alpha );
 					}
 				}
 			}
-
+      
 			if( gi != 0 ) {
 				break;
 			}
@@ -570,7 +570,7 @@ namespace {
 		ftex->Enable( 0 );
 		TexEnvCombineAlpha( 0 );
 		
-        glBegin( GL_QUADS );
+    glBegin( GL_QUADS );
 		vector<int> uc;
 		UnescapeUnicode( text, uc );
 		bool reverse = false;
@@ -580,17 +580,17 @@ namespace {
       if( reverse ) {
         break;
       }
-		} 
+		}
 		if ( reverse ) {
 			std::reverse( uc.begin(), uc.end() );
 		}
 		for ( int i = 0; i < (int)uc.size(); i++ ) {
 			int c = uc[i];
-			GlyphQuad q = GetGlyphQuad( GetGlyph( c ), imgSize, imgSize, &x, y, scale ); 
+			GlyphQuad q = GetGlyphQuad( GetGlyph( c ), imgSize, imgSize, &x, y, scale );
 			ImTexturedQuad( q.x0, q.y0, q.x1, q.y1, q.s0, q.t0, q.s1, q.t1 );
 		}
-        glEnd();
-        glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+    glEnd();
+    glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
 		ftex->Disable( 0 );
 	}
 	
@@ -603,7 +603,7 @@ namespace {
 		UnescapeUnicode( text, uc );
 		for ( int i = 0; i < (int)uc.size(); i++ ) {
 			int c = uc[i];
-			GlyphQuad q = GetGlyphQuad( GetGlyph( c ), imgSize, imgSize, &x, 0, scale ); 
+			GlyphQuad q = GetGlyphQuad( GetGlyph( c ), imgSize, imgSize, &x, 0, scale );
 			b.Add( Vec2f( q.x0, q.y0 ) );
 			b.Add( Vec2f( q.x1, q.y1 ) );
 		}
@@ -631,7 +631,7 @@ namespace r3 {
 		delete fontDatabase;
 		initialized = false;
 	}
-
+  
 	// FIXME: make this honor point size
 	Font * CreateStbFont( const std::string &ttfname, const std::string &ttfFallback, float pointSize ) {
 		assert( initialized );
@@ -646,6 +646,6 @@ namespace r3 {
 		}
 		return f;
 	}
-
+  
 	
 }

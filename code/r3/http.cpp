@@ -359,6 +359,10 @@ namespace r3 {
 
     // add If-None-Match with etag in the header....
 		HttpResponse resp ( is );
+    if( resp.code == 404 ) {
+      sock.Disconnect();
+      return false;
+    }
     header = resp.header;
     
     /*
