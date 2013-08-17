@@ -42,14 +42,16 @@
  */
 
 #include "r3/filesystem.h"
-#include "r3/var.h"
-#include "r3/output.h"
-#include "r3/parse.h"
+
+#include "r3/command.h"
 #include "r3/http.h"
 #include "r3/md5.h"
+#include "r3/output.h"
+#include "r3/parse.h"
 #include "r3/thread.h"
 #include "r3/time.h"
 #include "r3/ujson.h"
+#include "r3/var.h"
 
 #if __APPLE__
 # include <TargetConditionals.h>
@@ -90,10 +92,11 @@ namespace r3 {
 	VarString f_basePath( "f_basePath", "path to the base directory", Var_ReadOnly, "");
 	VarString f_cachePath( "f_cachePath", "path to writable cache directory", Var_ReadOnly, "" );
 	VarString f_netPath( "f_netPath", "semicolon separated base urls", Var_ReadOnly, "http://home.xyzw.us/star3map/data/" );
+  VarBool   f_cacheUpdated( "f_cacheUpdated", "tells us we need to restart at the next opportunity", Var_ReadOnly, false );
 }
 
 // Try to download a the file again if it's been this long (in seconds)
-#define CACHE_FILE_TIMEOUT 3600
+#define CACHE_REFRESH_INTERVAL 3600
 // Wait at least this long after a cached file has been opened before refreshing it from the net (in seconds)
 #define CACHE_FETCH_DELAY 15
 
@@ -245,6 +248,11 @@ namespace {
     }
     
   }
+  
+  void WriteCacheManifest_cmd( const vector< Token > & tokens ) {
+    WriteCacheManifest();
+	}
+	CommandFunc WriteCacheManifestCmd( "writecachemanifest", "write the cache manifest file", WriteCacheManifest_cmd );
   
 	string NormalizePathSeparator( const string inPath ) {
 		string path = inPath;
@@ -528,6 +536,20 @@ namespace {
     return NULL;
   }
   
+  double lastCacheRefresh = 0;
+  void RefreshCache() {
+    map<string,ManifestInfo> m;
+    {
+      ScopedMutex scm( filesystemMutex, R3_LOC );
+      m = manifest;
+    }
+    double t = GetTime();
+    lastCacheRefresh = t;
+    for( map<string,ManifestInfo>::iterator i = m.begin(); i != m.end(); ++i ) {
+      PushFileFetch( i->first, t );
+    }
+  }
+  
   struct NetCacheThread : public Thread {
     NetCacheThread() : Thread( "NetCache" ) {}
     
@@ -541,10 +563,13 @@ namespace {
 			while( ++count ) {
         filesystemCond.Wait();
         FileFetchEntry ffe;
+        double t = GetTime();
         if( PopFileFetch( ffe ) == false ) {
+          if( ( t - lastCacheRefresh ) > CACHE_REFRESH_INTERVAL ) {
+            RefreshCache();
+          }
           continue;
         }
-        double t = GetTime();
         string file;
         {
           if( t < ffe.notBefore ) {
@@ -561,7 +586,7 @@ namespace {
         if( mi.url == "local" ) {
           continue;
         }
-        if( ( t - mi.lastTry ) < CACHE_FILE_TIMEOUT ) {
+        if( ( t - mi.lastTry ) < CACHE_REFRESH_INTERVAL ) {
           Output( "NetCache - skipping %s, last try only %.0lf minutes ago", file.c_str(), (t - mi.lastTry ) / 60 );
           continue;
         }
@@ -589,6 +614,7 @@ namespace {
             mi.lastTry = GetTime();
             File * f = CachedFileOpenForWrite( file, mi );
             f->Write( &data[0], 1, (int)data.size() );
+            f_cacheUpdated.SetVal( true );
             delete f;
             break;
           }
@@ -629,7 +655,7 @@ namespace {
 
   File * CachedFileOpenForRead( const string & inFileName ) {
     File *fp = CachedFileOpenForPrivateRead( inFileName );
-    if( fp && inFileName != "CacheManifest.json" ) {
+    if( inFileName != "CacheManifest.json" ) {
       string filename = NormalizePathSeparator( inFileName );
       PushFileFetch( filename, GetTime() + CACHE_FETCH_DELAY );
     }
@@ -645,10 +671,13 @@ namespace r3 {
       Output( "exiting due to invalid %s: %s", f_basePath.Name().Str().c_str(), f_basePath.GetVal().c_str() );
       exit( 1 );
     }
-    f_cachePath.SetVal( f_basePath.GetVal() + "/../cache/" );
+    if( f_cachePath.GetVal().size() == 0 ) {
+      f_cachePath.SetVal( f_basePath.GetVal() + "/../cache/" );
+    }
     if( MakeDirectory( f_cachePath.GetVal().c_str() ) == false ) {
       exit( 1 );
     }
+    lastCacheRefresh = GetTime() + 120.0;
     ReadCacheManifest();
     netCacheThread.Start();
   }
@@ -660,6 +689,8 @@ namespace r3 {
   void TickFilesystem() {
     filesystemCond.Broadcast();
   }
+  
+  bool CacheUpdated() { return f_cacheUpdated.GetVal(); }
   
   File * FileOpenForWrite( const string & inFileName ) {
     ManifestInfo mi;

@@ -53,6 +53,8 @@ namespace r3 {
 	void InitFilesystem();
   void ShutdownFilesystem();
   void TickFilesystem();
+  bool CacheUpdated();
+
 	
 	enum SeekEnum {
 		Seek_Begin,
