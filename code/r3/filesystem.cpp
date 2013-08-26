@@ -667,7 +667,7 @@ namespace {
 namespace r3 {
   
   void InitFilesystem() {
-    if ( FindDirectory( f_basePath, "base" ) == false ) {
+    if ( FindDirectory( f_basePath, "bass" ) == false ) {
       Output( "exiting due to invalid %s: %s", f_basePath.Name().Str().c_str(), f_basePath.GetVal().c_str() );
       exit( 1 );
     }
