@@ -45,6 +45,7 @@ Cass Everitt
 #include "r3/output.h"
 #include "r3/parse.h"
 #include "r3/socket.h"
+#include "r3/time.h"
 
 #include <assert.h>
 
@@ -362,6 +363,17 @@ namespace r3 {
 		InputStream is( sock );
 
     // add If-None-Match with etag in the header....
+    int read_try_count = 5;
+    while( read_try_count > 0 && sock.CanRead() == false ) {
+      SleepMilliseconds( 500 );
+      read_try_count--;
+    }
+    if( read_try_count == 0 ) {
+      Output( "Socket read for %s timed out.", urlString.c_str() );
+      sock.Disconnect();
+      return false;
+    }
+
 		HttpResponse resp ( is );
     if( resp.code == 404 || resp.code == 304 ) {
       Output( "Http exiting read with code %d", resp.code );

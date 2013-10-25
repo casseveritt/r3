@@ -294,6 +294,7 @@ namespace r3 {
 
 	int Socket::ReadPartial( char * dst, uint dst_bytes ) {
 		//fprintf(stderr,"r3::Socket::read() %d bytes to 0x%x\n", dst_bytes, dst);
+    
 		int i = (int)recv( s, dst, dst_bytes, 0 );
 		if( i < 0 ) {
 #ifdef _WIN32
@@ -316,6 +317,9 @@ namespace r3 {
 	}
 
 	bool Socket::CanRead() {
+    if( s < 0 ) {
+      return false;
+    }
 		fd_set fds;
 		FD_ZERO( & fds );
 		FD_SET( s, & fds );
