@@ -41,17 +41,17 @@
  Cass Everitt
  */
 
-#include "r3/filesystem.h"
+#include "filesystem.h"
 
-#include "r3/command.h"
-#include "r3/http.h"
-#include "r3/md5.h"
-#include "r3/output.h"
-#include "r3/parse.h"
-#include "r3/thread.h"
-#include "r3/time.h"
-#include "r3/ujson.h"
-#include "r3/var.h"
+#include "command.h"
+#include "http.h"
+#include "md5.h"
+#include "output.h"
+#include "parse.h"
+#include "thread.h"
+#include "time.h"
+#include "ujson.h"
+#include "var.h"
 
 #if __APPLE__
 # include <TargetConditionals.h>
