@@ -55,7 +55,7 @@ using namespace r3;
 #define STBI_HEADER_FILE_ONLY
 #include "stb_image.c"
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 
