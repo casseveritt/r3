@@ -42,6 +42,9 @@
  */
 
 #include <GL/Regal.h>
+#if TARGET_OS_MAC
+#include <GL/RegalCGL.h>
+#endif
 #include "r3/output.h"
 #include "r3/thread.h"
 
