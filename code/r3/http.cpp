@@ -40,12 +40,12 @@ POSSIBILITY OF SUCH DAMAGE.
 Cass Everitt
 */
 
-#include "r3/http.h"
+#include "http.h"
 
-#include "r3/output.h"
-#include "r3/parse.h"
-#include "r3/socket.h"
-#include "r3/time.h"
+#include "output.h"
+#include "parse.h"
+#include "socket.h"
+#include "time.h"
 
 #include <assert.h>
 
