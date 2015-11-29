@@ -40,7 +40,7 @@
  Cass Everitt
  */
 
-#include "model.h"
+#include "r3/model.h"
 
 #include "r3/command.h"
 #include "r3/output.h"

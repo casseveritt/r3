@@ -21,7 +21,7 @@
 
 #include <string.h>  /* for memcpy() */
 
-#include "md5.h"
+#include "r3/md5.h"
 
 #ifndef HIGHFIRST
 #define byteReverse(buf, len)	/* Nothing */
