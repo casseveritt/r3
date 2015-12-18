@@ -51,7 +51,7 @@
 
 #include <GL/Regal.h>
 
-#include "stb_image_write.h"
+#include "r3/stb_image_write.h"
 
 #include <map>
 #include <string>
@@ -62,7 +62,7 @@ using namespace r3;
 #define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
 #define STBTT_malloc(x,u)  malloc(x)
 #define STBTT_free(x,u)    free(x)
-#include "stb_truetype.h"
+#include "r3/stb_truetype.h"
 
 #include <math.h>
 #include <assert.h>

@@ -56,7 +56,7 @@ using namespace r3;
 #include "stb_image.c"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include "r3/stb_image_write.h" // I don't like this.. I think I should put it in the code directory...
 
 
 namespace r3 {

@@ -48,7 +48,7 @@
 #include "r3/filesystem.h"
 #include "r3/output.h"
 
-#include "keysymdef.h"
+#include "r3/keysymdef.h"
 
 #include <map>
 #include <vector>
