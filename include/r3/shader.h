@@ -47,7 +47,7 @@
 #include <string>
 #include <map>
 #include "r3/linear.h"
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 namespace r3 {
     

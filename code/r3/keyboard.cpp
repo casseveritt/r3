@@ -10,7 +10,7 @@
 #include "r3/draw.h"
 #include "r3/font.h"
 #include "r3/var.h"
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include "r3/keyboard.h"
 #include "r3/keysymdef.h"
@@ -201,7 +201,7 @@ namespace r3 {
 	}
 
 	void SimpleKeyboard::Draw()	{
-
+#if 0
 		glColor4f( .4f, .4f, .4f, 1 );
 		
 		Bounds2f b = GetBounds( keys );
@@ -281,6 +281,7 @@ namespace r3 {
 			font->Print( str, b.Mid().x, b.Min().y - descent, s, Align_Mid, Align_Min );
 		}
         glDisable( GL_BLEND );
+        #endif
 	}
 
 

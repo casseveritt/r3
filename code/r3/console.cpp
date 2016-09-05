@@ -52,7 +52,7 @@
 #include "r3/var.h"
 #include "r3/font.h"
 #include "r3/draw.h"
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include <stdio.h>
 
@@ -364,7 +364,7 @@ namespace r3 {
 		int x0 = border;
 		int y = ( h >> 2) + border;
 		
-		glColor4ub( 16, 16, 16, con_opacity.GetVal() * 255 );
+		//glColor4ub( 16, 16, 16, con_opacity.GetVal() * 255 );
         glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
         glEnable( GL_BLEND );
 
@@ -376,16 +376,16 @@ namespace r3 {
 		//Bounds2f b = font->GetStringDimensions( cl, s );
 		Bounds2f b2 = font->GetStringDimensions( cl.substr(0, cp ), s );
 		
-		glColor4ub( 255, 255, 255, 192 );
+		//glColor4ub( 255, 255, 255, 192 );
 		font->Print( cl, x0, y, s );
 		
         
-		glColor4ub( 255, 255, 255, 64 );
+		//glColor4ub( 255, 255, 255, 64 );
 		DrawQuad( x0 + b2.Width(), y, x0 + b2.Width() + bO.Width(), y + bO.Height() );
 		
 		y += yAdvance;
 
-		glColor4ub( 255, 255, 255, 128 );
+		//glColor4ub( 255, 255, 255, 128 );
 		for ( int i = (int)outputBuffer.size() - 1 - outputBufferPos; i >= 0 && y < h; i-- ) {
 			string & line = outputBuffer[ i ];
 			font->Print( line, x0, y, s );

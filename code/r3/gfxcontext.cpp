@@ -41,10 +41,7 @@
  Cass Everitt
  */
 
-#include <GL/Regal.h>
-#if TARGET_OS_MAC
-#include <GL/RegalCGL.h>
-#endif
+#include "r3/gl.h"
 #include "r3/output.h"
 #include "r3/thread.h"
 
@@ -141,8 +138,8 @@ namespace {
         GlContext gc;
     };
 #elif TARGET_OS_MAC
-//# include <OpenGL/OpenGL.h>
-//# include <OpenGL/CGLCurrent.h>
+# include <OpenGL/OpenGL.h>
+# include <OpenGL/CGLCurrent.h>
     
     struct PlatformGfxContext : public r3::GfxContext {
         PlatformGfxContext( r3::GfxContext * gctx ) {

@@ -46,7 +46,7 @@
 
 #include "r3/buffer.h"
 #include "r3/linear.h"
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include <vector>
 
@@ -70,8 +70,8 @@ namespace r3 {
 	int GetVertexSize( int varying );
 	
 	// set the texture env
-	void TexEnvCombineAlpha( int index );
-    void TexEnvCombineAlphaModulate( int index );
+	//void TexEnvCombineAlpha( int index );
+    //void TexEnvCombineAlphaModulate( int index );
 
     void DrawQuad( float x0, float y0, float x1, float y1 );
 	void ImTexturedQuad( float x0, float y0, float x1, float y1, float s0, float t0, float s1, float t1 );

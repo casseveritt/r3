@@ -47,7 +47,7 @@
 #include "r3/common.h"
 #include "r3/output.h"
 #include "r3/thread.h"
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include <assert.h>
 
@@ -71,46 +71,24 @@ namespace r3 {
     }
 
 	int GetDepthBits() {
-		int r;
-		glGetIntegerv( GL_DEPTH_BITS, &r );
+		int r = 0;
+		//glGetIntegerv( GL_DEPTH_BITS, &r );
 		return r;
 	}
 			
-	void TexEnvCombineAlpha( int index ) {
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA );			
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA );			
-	}
-
-	void TexEnvCombineAlphaModulate( int index ) {
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_ALPHA );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA );			
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_TEXTURE );
-		glMultiTexEnviEXT( GL_TEXTURE0 + index, GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA );			
-	}
 		void DrawQuad( float x0, float y0, float x1, float y1 ) {
+        /*
 		glBegin( GL_QUADS );
 		glVertex2f( x0, y0 );
 		glVertex2f( x1, y0 );
 		glVertex2f( x1, y1 );
 		glVertex2f( x0, y1 );		
 		glEnd();
+        */
 	}
 	
 	void ImTexturedQuad( float x0, float y0, float x1, float y1, float s0, float t0, float s1, float t1 ) {
+    /*
 		glMultiTexCoord2f( GL_TEXTURE0, s0, t0 );
 		glVertex2f( x0, y0 );
 		glMultiTexCoord2f( GL_TEXTURE0, s1, t0 );
@@ -119,9 +97,11 @@ namespace r3 {
 		glVertex2f( x1, y1 );
 		glMultiTexCoord2f( GL_TEXTURE0, s0, t1 );
 		glVertex2f( x0, y1 );		
+        */
 	}
 	
 	void DrawTexturedQuad( float x0, float y0, float x1, float y1, float s0, float t0, float s1, float t1 ) {
+    /*
 		glBegin( GL_QUADS );
 		glMultiTexCoord2f( GL_TEXTURE0, s0, t0 );
 		glVertex2f( x0, y0 );
@@ -132,9 +112,11 @@ namespace r3 {
 		glMultiTexCoord2f( GL_TEXTURE0, s0, t1 );
 		glVertex2f( x0, y1 );		
 		glEnd();
+        */
 	}
 	
 	void DrawSprite( float x0, float y0, float x1, float y1 ) {
+    /*
 		glBegin( GL_QUADS );
 		glMultiTexCoord2f( GL_TEXTURE0, 0, 0 );
 		glVertex2f( x0, y0 );
@@ -145,6 +127,7 @@ namespace r3 {
 		glMultiTexCoord2f( GL_TEXTURE0, 0, 1 );
 		glVertex2f( x0, y1 );		
 		glEnd();
+        */
 	}
 	
 	

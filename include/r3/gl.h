@@ -48,54 +48,28 @@
 #ifdef __APPLE__
 # include <TargetConditionals.h>
 # if TARGET_OS_IPHONE
-#  include <OpenGLES/ES1/gl.h>
-#  include <OpenGLES/ES1/glext.h>
+#  include <OpenGLES/ES2/gl.h>
+#  include <OpenGLES/ES2/glext.h>
 #  define R3_GLES1 1
 # else
-#  include <OpenGL/gl.h>
-#  include "r3/GL/glext.h"
+#  include <OpenGL/gl3.h>
+#  include <OpenGL/gl3ext.h>
 # endif
 
 #elif _MSC_VER
 # include <windows.h>
 # include <GL/gl.h>
-# include "r3/GL/glext.h"
-# include "r3/GL/entry.h"
+//# include "r3/GL/glext.h"
+//# include "r3/GL/entry.h"
 
 #elif ANDROID
 # include <GLES/gl.h>
 # include <GLES/glext.h>
-# define R3_GLES1 1 
-#endif
-
-#if R3_GLES1
-#  define GL_TEXTURE_1D 0
-#  define GL_TEXTURE_3D 0
-#  define GL_TEXTURE_CUBE_MAP 0
-#  define GL_TEXTURE_LOD_BIAS GL_TEXTURE_LOD_BIAS_EXT
-#  define GL_TEXTURE_MIN_LOD 0
-#  define GL_TEXTURE_MAX_LOD 0
-#  define GL_DEPTH_COMPONENT GL_DEPTH_COMPONENT16_OES
-#  define glGenerateMipmapEXT glGenerateMipmapOES
-#  define GlInternalFormat GlFormat
-
-#  define GL_FRAMEBUFFER_EXT GL_FRAMEBUFFER_OES
-#  define GL_RENDERBUFFER_EXT GL_RENDERBUFFER_OES
-#  define GL_COLOR_ATTACHMENT0_EXT GL_COLOR_ATTACHMENT0_OES
-#  define glGenRenderbuffersEXT glGenRenderbuffersOES
-#  define glDeleteRenderbuffersEXT glDeleteRenderbuffersOES
-#  define glBindRenderbufferEXT glBindRenderbufferOES
-#  define glRenderbufferStorageEXT glRenderbufferStorageOES
-#  define glGenerateMipmapEXT glGenerateMipmapOES
-
-#  define glOrtho glOrthof
 
 #elif __linux__
 
-#define GL_GLEXT_LEGACY 1
-#error "Why am I here?"
 #include <GL/gl.h>
-#include "r3/GL/entry.h"
+//#include "r3/GL/entry.h"
 
 #endif
 

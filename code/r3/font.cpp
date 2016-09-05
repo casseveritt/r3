@@ -49,7 +49,7 @@
 #include "r3/output.h"
 #include "r3/texture.h"
 
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include "r3/stb_image_write.h"
 
@@ -567,9 +567,10 @@ namespace {
 		
 		// assume orthographic projection with units = screen pixels, origin at top left
 		ftex->Bind( 0 );
-		ftex->Enable( 0 );
-		TexEnvCombineAlpha( 0 );
+		//ftex->Enable( 0 );
+		//TexEnvCombineAlpha( 0 );
 		
+        #if 0
     glBegin( GL_QUADS );
 		vector<int> uc;
 		UnescapeUnicode( text, uc );
@@ -590,8 +591,10 @@ namespace {
 			ImTexturedQuad( q.x0, q.y0, q.x1, q.y1, q.s0, q.t0, q.s1, q.t1 );
 		}
     glEnd();
-    glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
-		ftex->Disable( 0 );
+    #endif
+    
+    //glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+		//ftex->Disable( 0 );
 	}
 	
 	

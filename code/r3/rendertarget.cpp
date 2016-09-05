@@ -41,7 +41,7 @@
 
 #include "r3/rendertarget.h"
 
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include <assert.h>
 

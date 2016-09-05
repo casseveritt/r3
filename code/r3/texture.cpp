@@ -47,7 +47,7 @@
 #include "r3/common.h"
 #include "r3/image.h"
 #include "r3/output.h"
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include <map>
 
@@ -86,7 +86,6 @@ namespace {
   const GLenum GlFormat[] = {
     0,                          // TextureFormat_INVALID,
     GL_ALPHA,                   // TextureFormat_A,
-    GL_LUMINANCE_ALPHA,         // TextureFormat_LA,
     GL_RGB,                     // TextureFormat_RGB,
     GL_RGBA,                    // TextureFormat_RGBA,
     GL_DEPTH_COMPONENT,			// TextureFormat_DepthComponent,
@@ -96,7 +95,6 @@ namespace {
   const char *FormatString[] = {
     "INVALID",                  // TextureFormat_INVALID,
     "L",                        // TextureFormat_L,
-    "LA",                       // TextureFormat_LA,
     "RGB",                      // TextureFormat_RGB,
     "RGBA",                     // TextureFormat_RGBA,
     "WTF?"                      // TextureFormat_MAX
@@ -209,10 +207,7 @@ namespace {
     return 1 << lnext;
   }
   
-  bool hasGenerateMipmap = false;
   bool hasAniso = false;
-  
-  
 }
 
 
@@ -236,12 +231,8 @@ namespace r3 {
         ext = (const char *)glGetStringi( GL_EXTENSIONS, i );
         s += string( ext ) + " ";
       }
-      hasGenerateMipmap = true;
     }
     
-    if( s.find( "_framebuffer_object " ) != string::npos ) {
-      hasGenerateMipmap = true;
-    }
     if( s.find( "_texture_filter_anisotropic " ) != string::npos ) {
       hasAniso = true;
     }
@@ -286,15 +277,8 @@ namespace r3 {
   
   
   void Texture::Bind( int imageUnit ) {
-    glBindMultiTextureEXT( GL_TEXTURE0 + imageUnit, GlTarget[ target ], object );
-  }
-  
-  void Texture::Enable( int imageUnit ) {
-    glEnableIndexedEXT( GlTarget[ target ], imageUnit );
-  }
-  
-  void Texture::Disable( int imageUnit ) {
-    glDisableIndexedEXT( GlTarget[ target ], imageUnit );
+    Bind( modBindUnit );
+    glBindTexture( GlTarget[ target ], object );
   }
   
   void Texture::ClampToEdge() {
@@ -384,12 +368,8 @@ namespace r3 {
       glTexSubImage2D( GlTarget[ Target() ], level, 0, 0, width, height, GlFormat[ Format() ], GL_UNSIGNED_BYTE, data );
     }
     if ( level == 0 ) {
-      if ( hasGenerateMipmap ) {
-        glGenerateMipmapEXT( GlTarget[ Target() ] );
+        glGenerateMipmap( GlTarget[ Target() ] );
         levelMax = int( log( double( max( width, height ) ) ) / log( 2.0 ) + 0.5 );
-      } else {
-        glTexParameteri( GlTarget[ Target() ], GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-      }
     }
   }
   
@@ -553,12 +533,8 @@ namespace r3 {
       glTexSubImage2D( face, level, 0, 0, width, width, GlFormat[ Format() ], GL_UNSIGNED_BYTE, data );
     }
     if ( level == 0 && facesSet == 0x3f ) {
-      if ( hasGenerateMipmap ) {
-        glGenerateMipmapEXT( GlTarget[ Target() ] );
+        glGenerateMipmap( GlTarget[ Target() ] );
         levelMax = int( log( double( width ) ) / log( 2.0 ) + 0.5 );
-      } else {
-        glTexParameteri( GlTarget[ Target() ], GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-      }
     }
   }
   

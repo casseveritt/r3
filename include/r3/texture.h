@@ -45,7 +45,7 @@
 #define __R3_TEXTURE_H__
 
 #include <string>
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 namespace r3 {
 	
@@ -133,8 +133,8 @@ namespace r3 {
     virtual void Dealloc() = 0;
     
 		void Bind( int imageUnit );
-		void Enable( int imageUnit );
-		void Disable( int imageUnit );
+		//void Enable( int imageUnit );
+		//void Disable( int imageUnit );
 		
 		const std::string & Name() const {
 			return name;

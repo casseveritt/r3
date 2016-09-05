@@ -47,8 +47,7 @@
 #include "r3/command.h"
 #include "r3/filesystem.h"
 #include "r3/output.h"
-
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 #include <map>
 
@@ -207,15 +206,18 @@ namespace r3 {
     
     void Shader::SetUniform( const string & name, const Matrix4f & m ) {
         GLint slot = GetSlot( pgObject, uniform, name );
-        glProgramUniformMatrix4fvEXT( pgObject, slot, 1, GL_FALSE, m.Ptr() );
+        glUseProgram( pgObject );
+        glUniformMatrix4fv( slot, 1, GL_FALSE, m.Ptr() );
     }    
     void Shader::SetUniform( const string & name, const Vec3f & v ) {
         GLint slot = GetSlot( pgObject, uniform, name );
-        glProgramUniform3fvEXT( pgObject, slot, 1, v.Ptr() );
+        glUseProgram( pgObject );
+        glUniform3fv( slot, 1, v.Ptr() );
     }
     void Shader::SetUniform( const string & name, GLint i ) {
         GLint slot = GetSlot( pgObject, uniform, name );
-        glProgramUniform1iEXT( pgObject, slot, i );
+        glUseProgram( pgObject );
+        glUniform1i( slot, i );
     }    
     
     Shader * CreateShaderFromFile( const std::string & filename ) {

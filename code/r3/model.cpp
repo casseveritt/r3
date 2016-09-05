@@ -45,6 +45,7 @@
 #include "r3/command.h"
 #include "r3/output.h"
 #include "r3/thread.h"
+#include "r3/gl.h"
 
 #include <map>
 
@@ -116,54 +117,12 @@ namespace {
             glVertexAttribPointer( a.index, a.size, a.type, a.normalized, a.stride, a.pointer );
             return;
         }
-        switch ( a.index ) {
-            case GL_VERTEX_ARRAY:
-                glEnableClientState( a.index );
-                glVertexPointer( a.size, a.type, a.stride, a.pointer);
-                break;
-            case GL_NORMAL_ARRAY:
-                glEnableClientState( a.index );
-                glNormalPointer( a.type, a.stride, a.pointer );
-                break;
-            case GL_COLOR_ARRAY:
-                glEnableClientState( a.index );
-                glColorPointer( a.size, a.type, a.stride, a.pointer );
-                break;
-            case GL_TEXTURE0:
-            case GL_TEXTURE1:
-            case GL_TEXTURE2:
-            case GL_TEXTURE3:
-                glEnableClientStateIndexedEXT( GL_TEXTURE_COORD_ARRAY, a.index - GL_TEXTURE0 );
-                glMultiTexCoordPointerEXT( a.index, a.size, a.type, a.stride, a.pointer );
-                break;
-            default:
-                break;
-        }
     }
 
     void DisableAttributeArray( const AttributeArray & a ) {
         if( a.index < 16 ) {
             glDisableVertexAttribArray( a.index );
             return;
-        }
-        switch ( a.index ) {
-            case GL_VERTEX_ARRAY:
-                glDisableClientState( a.index );
-                break;
-            case GL_NORMAL_ARRAY:
-                glDisableClientState( a.index );
-                break;
-            case GL_COLOR_ARRAY:
-                glDisableClientState( a.index );
-                break;
-            case GL_TEXTURE0:
-            case GL_TEXTURE1:
-            case GL_TEXTURE2:
-            case GL_TEXTURE3:
-                glDisableClientStateIndexedEXT( GL_TEXTURE_COORD_ARRAY, a.index - GL_TEXTURE0 );
-                break;
-            default:
-                break;
         }
     }
     

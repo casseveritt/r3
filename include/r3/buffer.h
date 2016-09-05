@@ -47,7 +47,7 @@
 
 #include <string>
 #include <vector>
-#include <GL/Regal.h>
+#include "r3/gl.h"
 
 namespace r3 {
 	
