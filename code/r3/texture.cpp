@@ -277,7 +277,7 @@ namespace r3 {
   
   
   void Texture::Bind( int imageUnit ) {
-    Bind( modBindUnit );
+    glActiveTexture( GL_TEXTURE0 + imageUnit );
     glBindTexture( GlTarget[ target ], object );
   }
   
