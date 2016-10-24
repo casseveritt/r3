@@ -103,7 +103,8 @@ namespace r3 {
         void SetUniform( const std::string & name, const Matrix4f & m );
     };
     
-    Shader * CreateShaderFromFile( const std::string & filename );
+  Shader * CreateShaderFromFile( const std::string & filename );
+  Shader * CreateShaderFromStrings( const std::string & key, const std::string & vs, const std::string & fs );
 }
 
 #endif // __R3_SHADER_H__
